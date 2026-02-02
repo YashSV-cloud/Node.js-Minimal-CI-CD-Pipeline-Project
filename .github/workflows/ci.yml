@@ -3,25 +3,42 @@ name: Node CI/CD Pipeline
 on:
   push:
     branches: [ main ]
+  pull_request:
 
 jobs:
-  build-test:
+  ci-cd:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      # Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
+      # Setup Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install deps
+      # Install dependencies
+      - name: Install dependencies
         run: npm install
 
+      # Run tests (CI stage)
       - name: Run tests
         run: npm test
 
-      - name: Build step (CD demo)
-        run: echo "Build successful — ready for deployment"
+      # Build Docker image (CD stage)
+      - name: Build Docker image
+        run: docker build -t node-ci-cd-app .
+
+      # Run container (CD verify stage)
+      - name: Run container test
+        run: |
+          docker run -d -p 3000:3000 --name test-container node-ci-cd-app
+          sleep 5
+          curl -f http://localhost:3000 || exit 1
+
+      # Cleanup container
+      - name: Cleanup
+        run: docker stop test-container && docker rm test-container
